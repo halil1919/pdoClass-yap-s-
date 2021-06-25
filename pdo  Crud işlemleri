@@ -1,0 +1,310 @@
+<?php
+defined ('_ERISIM') or die ('Erisim Engellendi');
+class mainx extends database{
+	
+		public $Cyol;
+		public $cachedurum;
+		
+		function select($ekod,$tip,$dosyaad,$sutunlar,$tablolar,$sartlar='',$sirala='',$limit=''){
+			if($tip==1){
+						$dosyaAdı = $dosyaad.".html";
+						$cache = "dosya/".$dosyaAdı;
+						$sure = 25; //saniye cinsindendir
+						$this->Cyol = $cache;
+						
+					if(time() - $sure < @filemtime($cache)){
+							readfile($cache);
+							$this->cachedurum = 0;
+					}else{
+						
+							$this->cachedurum = 1;
+							@unlink($cache);
+							ob_start();
+							$this->sql="SELECT $sutunlar FROM $tablolar";
+							if($sartlar){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar"; }
+							if($sirala){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar ORDER BY $sirala"; }
+							if($sartlar== '' and $sirala){$this->sql="SELECT $sutunlar FROM $tablolar  ORDER BY $sirala"; }
+							if($sartlar== '' and $sirala =='' and $limit){$this->sql="SELECT $sutunlar FROM $tablolar  LIMIT $limit"; }
+							if($limit){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar ORDER BY $sirala LIMIT $limit";}
+							
+							$this->sor = $this->con->prepare($this->sql);
+							$this->sor->execute();
+							$this->say = $this->sor->rowCount();
+		
+							if($this->say < 1){
+								if($ekod==1){
+									$a = $this->con->errorInfo();
+									echo '<pre>';
+										echo $a[2]."<br>";
+										return $this->sor->debugDumpParams();
+									echo '</pre>';
+								}
+							}else{
+								return true;
+								$this->sor->closeCursor();
+							}
+					}
+			}else{
+						$this->cachedurum = 1;
+						$this->sql="SELECT $sutunlar FROM $tablolar";
+						if($sartlar){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar"; }
+						if($sirala){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar ORDER BY $sirala"; }
+						if($sartlar== '' and $sirala){$this->sql="SELECT $sutunlar FROM $tablolar  ORDER BY $sirala"; }
+						if($sartlar== '' and $sirala =='' and $limit){$this->sql="SELECT $sutunlar FROM $tablolar  LIMIT $limit"; }
+						if($limit){$this->sql="SELECT $sutunlar FROM $tablolar WHERE $sartlar ORDER BY $sirala LIMIT $limit"; }
+						$this->sor = $this->con->prepare($this->sql);
+						$this->sor->execute();
+						$this->say = $this->sor->rowCount();
+						if($this->say < 1 || empty($this->say)){
+							if($ekod==1){
+								$a = $this->con->errorInfo();
+								echo '<pre>';
+									echo $a[2]."<br>";
+									return $this->sor->debugDumpParams();
+								echo '</pre>';
+							}
+						}else{
+							return true;
+							$this->sor->closeCursor();
+						}
+			}	
+		}
+		
+		function fopenc(){
+			if($this->cachedurum==1){
+				$ac = fopen($this->Cyol,"w+");
+				fwrite($ac, ob_get_contents());
+				ob_end_flush();
+			}
+		}
+		
+		function deletex($tip,$tablo,$sartlar){
+				$this->sql="DELETE FROM  $tablo WHERE $sartlar";
+				$this->sor = $this->con->query($this->sql);
+				$hata = $this->con->errorInfo();
+				$a = $this->con->errorInfo();
+				if($hata[1]==1146 || $hata[0]=="42S02" || $hata[1]=="1054"){
+					if($tip==1){
+							echo '<pre>';
+								echo $a[2]."<br>";
+								print_r($hata);
+							echo '</pre>';
+						}else{
+							echo '<script>alert("Tablo adı ve genel bir yazım sorunu '.$sartlar.'");</script>';
+						}
+				}else{
+					
+					if($this->sor->rowCount() > 0){
+						return true;
+					}else{
+						if($tip==1){
+							echo '<pre>';
+								echo $a[2]."<br>";
+								print_r($hata);
+							echo '</pre>';
+						}else{
+							echo '<script>alert("Silinmedi bir sorun var");</script>';
+						}
+					}
+					$this->sor->closeCursor();
+				}
+		}
+		
+		//PDO GÜVENLİ YAPI KİTAP
+		function insert($err,$tablo,$form, $sql = null, $bool = true){
+			try {
+				global $db;
+				$yer   = $bool ? implode(', ', array_fill(0, count($form), '?')) : $sql;
+				$sutun = implode(",", array_keys($form));
+				$stmt  = $this->con->prepare("INSERT INTO $tablo($sutun) VALUES($yer)");
+				$this->sql = "INSERT INTO $tablo($sutun) VALUES($yer)";
+				$stmt->execute(array_values($form));
+				$this->sor = $stmt;
+				$hata = $this->con->errorInfo();
+				if($this->con->lastInsertId() > 0){
+					$this->sonid = $this->con->lastInsertId();
+					return true;
+				}else{
+					if($err==1){
+							$a = $this->con->errorInfo();
+							echo '<pre>';
+								echo $a[2]."<br>";
+								return $this->sor->debugDumpParams();
+							echo '</pre>';
+							echo "<br><br>";
+					}else{
+							echo "Eklemede Bir hata !!";
+							return false;
+					}
+				}
+			}catch(Exception $e){
+
+				return $this->errCode();
+				if ($e->errorInfo[1] == 1062) {
+				   $_SESSION['hata_mesaji'] = 'Girdiğiniz bilgilerden birisi zaten kayıtlı';
+				   throw new Exception( 'Girdiğiniz bilgilerden birisi zaten kayıtlı:' . $e->getMessage() );
+							$a = $this->con->errorInfo();
+							echo '<pre>';
+								echo $a[2]."<br>";
+								return $this->sor->debugDumpParams()."-".print_r($hata);
+							echo '</pre>';
+				} else {
+							$a = $this->con->errorInfo();
+							echo '<pre>';
+								echo $a[2]."<br>";
+								return $this->sor->debugDumpParams()."-".print_r($hata);
+							echo '</pre>';
+				   throw new Exception($e->getMessage());
+				}
+			}
+		}
+	
+		//Bizim standart ekleme
+		function ekle($err,$tablo,$g,$sifre=''){
+			list($fields,$values)=$this->array_insert($g);
+			$this->sql="INSERT INTO $tablo ($fields) VALUES ($values)";
+			if($sifre){$this->sql="INSERT INTO $tablo ($fields,sifre) VALUES ($values,'$sifre')";}
+			$this->sor = $this->con->prepare($this->sql);
+			$this->sor->execute();
+			$this->say = $this->sor->rowCount();
+			$this->sonid = $this->con->lastInsertId();
+			$hata = $this->con->errorInfo();
+			if($this->say > 0){
+				return true;
+			}else{
+				if($err==1){
+					$a = $this->con->errorInfo();
+					echo '<pre>';
+						echo $a[2]."<br>";
+						return $this->sor->debugDumpParams()."-".print_r($hata);
+					echo '</pre>';
+					return false;
+				}else{
+					echo '<script>alert("Eklemedi bir sorun var");</script>';
+					return false;
+				}
+			}
+		}
+		
+		//$value= array('','20',$ürün->baslik,$fiyat,'2');
+		public function insert_first($table,$value,$row=null){
+			$insert= " INSERT INTO ".$table;
+			if($row!=null){
+				$insert.=" (". $row." ) ";
+			}
+			for($i=0; $i<count($value); $i++){
+				if(is_string($value[$i])){
+					$value[$i]= '"'. $value[$i] . '"';
+				}
+			}
+			$value=implode(',',$value);
+			$insert.=' VALUES ('.$value.')';
+			
+			$this->sql = $insert;
+			$this->sor = $this->con->prepare($this->sql);
+			$this->sor->execute();
+			$this->say = $this->sor->rowCount();
+			return $this->say;
+		}
+	
+		//Güncel kitap
+		function update($err,$tablo, $form, $where){
+			try {
+				global $db;							   
+				$sutun  = implode(' = ?, ', array_keys($form)) . ' = ? ';
+				$where2 = implode(' = ?, ', array_keys($where)) . ' = ? ';
+				$stmt   = $this->con->prepare("UPDATE $tablo SET $sutun WHERE $where2");
+				$form   = array_merge($form, $where);
+				$stmt->execute(array_values($form));
+				$this->sor = $stmt;
+				if($stmt->rowCount() > 0){
+					return $stmt->rowCount();
+				}else{
+					if($err==1){
+						echo '<pre>';
+							echo $a[2]."<br>";
+							return $this->sor->debugDumpParams()."-".print_r($hata);
+						echo '</pre>';
+						return false;
+					}else{
+						return false;
+					}
+				}
+			}
+			catch (Exception $e) {
+				throw new Exception($e->getMessage());
+			}
+		}
+		
+		//Bizim Standar Renkli
+		function guncelle($err,$tablo,$g,$sart){
+			$veri= $this->array_update($g);
+			$this->sql="UPDATE $tablo SET $veri WHERE $sart";
+			$this->sor = $this->con->query($this->sql);
+			$hata = $this->con->errorInfo();
+			if($hata[1]==1054 || $hata[0]=="42S22" || $hata[1]=="1146"){
+				if($err==1){
+					echo hfk::alert1("Güncellerken Bir sorun Oluştu");	
+					echo $this->sql."-".$hata[2];
+				}else{
+					echo '<script>alert("Güncellenmedi bir sorun var");</script>';
+				}
+			}else{				
+				$this->say = $this->sor->rowCount();
+				return true;
+			}
+		}
+		
+		
+		
+		function cokluresim($resim,$kayitip,$dhedef,$oid,$tablo,$tabload,$kid,$islem=''){
+								
+								//resim resim[]
+								//Kayitip 1 ise database ekler
+								//hedef "../"
+								//oid 0 ise sadece tabloya kayıt 1 ise kid li kayitip
+								//tablo 
+								//tabload
+								//kid
+								
+								$toplam = count($resim["name"]);
+								
+								for ($i = 0; $i < $toplam; $i++){
+									
+									//sınırsız
+									  $isim = rand(100,9999909);
+									  $uzanti = substr($resim["name"][$i],-4,4);
+									  $dizin = $dhedef.$isim."_".$uzanti;
+									  
+									  $yeniad =$isim.$uzanti;
+									  if (@move_uploaded_file($resim["tmp_name"][$i], $dizin)){
+										  
+										//echo '<img src="'.$dizin.'" alt="" class="resim" />';
+										 if($kayitip==1){
+											if($oid==0){
+												$this->sql="INSERT INTO {$tablo} SET resim='$yeniad'";
+												$ekle = $this->con->query($this->sql);
+												if($ekle){
+													$_SESSION['ckresim'] = true;
+												}
+											}else{
+												$this->sql="INSERT INTO {$tablo} SET resim='$yeniad',$tabload=$kid";
+												$ekle = $this->con->query($this->sql);
+												if($ekle){
+													$_SESSION['ckresim'] = true;
+												}
+											}
+										 }else{
+											$_SESSION['ckresim'] = true;
+										 }
+									   }else{
+											$_SESSION['ckresim'] = false;
+									   }
+						 }//for bitiş
+		}//class bitiş
+		
+		
+
+}
+
+?>
