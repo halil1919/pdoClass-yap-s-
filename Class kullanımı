@@ -1,0 +1,29 @@
+CURD İŞLEMLERİ
+
+SELECT SORGUSU
+
+<?php
+
+$a->select(0,0,"x","*","kategoriler","1=1 ORDER BY kategori_sno DESC");
+while($kategoricek = $a->verioku()){
+	echo $kategoricek->kategori_ad
+}
+
+?>		
+
+Güncelleme
+
+$blogkategoriekle = $a->guncelle(0,"blogkonu",$veriler,"blog_konu_id=$gelenid");
+
+if($blogkategoriekle){
+
+}
+
+
+SİLME
+
+$sonuc = $a->deletex(0,"kategoriler","id=1");
+
+if($sonuc){
+	//Yönlendirme
+}
